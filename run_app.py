@@ -9,6 +9,10 @@ import webbrowser
 import time
 from pathlib import Path
 
+# Set TensorFlow defaults before any TF import happens.
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
+
 def check_requirements():
     """Check if required packages are installed"""
     try:

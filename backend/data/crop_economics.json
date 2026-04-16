@@ -1,0 +1,18 @@
+{
+"rice":        { "cost": 15000, "price": 28000, "duration": 120, "risk": 0.3, "water_need": "high" },
+"wheat":       { "cost": 12000, "price": 22000, "duration": 110, "risk": 0.3, "water_need": "medium" },
+"maize":       { "cost": 10000, "price": 20000, "duration": 90,  "risk": 0.4, "water_need": "medium" },
+"cotton":      { "cost": 25000, "price": 50000, "duration": 160, "risk": 0.7, "water_need": "medium" },
+"sugarcane":   { "cost": 30000, "price": 60000, "duration": 300, "risk": 0.6, "water_need": "high" },
+"groundnut":   { "cost": 12000, "price": 26000, "duration": 100, "risk": 0.5, "water_need": "low" },
+"sunflower":   { "cost": 11000, "price": 24000, "duration": 95,  "risk": 0.5, "water_need": "low" },
+"pulses":      { "cost": 8000,  "price": 18000, "duration": 85,  "risk": 0.2, "water_need": "low" },
+"jowar":       { "cost": 9000,  "price": 17000, "duration": 100, "risk": 0.3, "water_need": "low" },
+"ragi":        { "cost": 7000,  "price": 16000, "duration": 95,  "risk": 0.2, "water_need": "low" },
+"potato":      { "cost": 20000, "price": 40000, "duration": 90,  "risk": 0.6, "water_need": "medium" },
+"onion":       { "cost": 18000, "price": 45000, "duration": 100, "risk": 0.8, "water_need": "medium" },
+"coffee":      { "cost": 35000, "price": 80000, "duration": 365, "risk": 0.7, "water_need": "medium" },
+"tea":         { "cost": 30000, "price": 70000, "duration": 365, "risk": 0.6, "water_need": "medium" },
+"coconut":     { "cost": 20000, "price": 50000, "duration": 365, "risk": 0.4, "water_need": "high" },
+"cashew":      { "cost": 22000, "price": 55000, "duration": 300, "risk": 0.5, "water_need": "low" }
+}

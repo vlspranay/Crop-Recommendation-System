@@ -161,6 +161,62 @@
                     </div>
                 </div>
 
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <h3>Location (Optional)</h3>
+                        <p>Used for rainfall and groundwater estimation</p>
+                    </div>
+                    <div class="location-grid">
+                        <div class="parameter-group">
+                            <label for="latitude">
+                                <i class="fas fa-location-dot" style="margin-right: 0.5rem; color: #48bb78;"></i>
+                                Latitude
+                            </label>
+                            <input type="number" id="latitude" placeholder="e.g., 16.5000" min="-90" max="90" step="0.000001">
+                        </div>
+                        <div class="parameter-group">
+                            <label for="longitude">
+                                <i class="fas fa-location-arrow" style="margin-right: 0.5rem; color: #48bb78;"></i>
+                                Longitude
+                            </label>
+                            <input type="number" id="longitude" placeholder="e.g., 80.6000" min="-180" max="180" step="0.000001">
+                        </div>
+                        <div class="location-actions">
+                            <button type="button" class="btn btn-secondary" id="useCurrentLocationBtn">
+                                <i class="fas fa-crosshairs"></i>
+                                Use Current Location
+                            </button>
+                        </div>
+                    </div>
+                    <p class="input-helper-text">Used for rainfall and groundwater estimation</p>
+                    <p class="inline-error" id="locationError" style="display: none;"></p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-scale-balanced"></i>
+                        <h3>Preference: Risk vs Return</h3>
+                        <p>Set your decision bias</p>
+                    </div>
+                    <div class="risk-preference-wrap">
+                        <div class="risk-center-label" id="riskPreferenceLabel">Balanced (0.50)</div>
+                        <input
+                            type="range"
+                            id="riskPreference"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value="0.5"
+                            class="risk-slider"
+                        >
+                        <div class="risk-label-row">
+                            <span>Low Risk</span>
+                            <span>High Return</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Analysis Button -->
                 <div class="analysis-actions">
                     <button class="btn btn-primary btn-large" id="analyzeBtn" onclick="performAnalysis()">

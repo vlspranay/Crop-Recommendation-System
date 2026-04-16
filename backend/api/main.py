@@ -2,7 +2,7 @@
 FastAPI Backend for Combined Crop & Soil Recommendation System
 """
 
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
@@ -61,9 +61,14 @@ except Exception as e:
     recommender = None
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root():
+async def read_root(request: Request):
     """Serve the main HTML page"""
-    return templates.TemplateResponse("index.html", {"request": {}})
+    try:
+        # Starlette newer signature: TemplateResponse(request=..., name=..., context=...)
+        return templates.TemplateResponse(request=request, name="index.html", context={})
+    except TypeError:
+        # Starlette older signature: TemplateResponse(name, context)
+        return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/api/classify")
 async def classify_soil(image: UploadFile = File(...)):
@@ -151,7 +156,10 @@ async def recommend_crops(
 @app.post("/api/complete-analysis")
 async def complete_analysis(
     image: UploadFile = File(...),
-    environmental_params: Optional[str] = Form(None)
+    environmental_params: Optional[str] = Form(None),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+    risk_preference: Optional[float] = Form(0.5)
 ):
     """
     Perform complete analysis: soil classification + crop recommendations
@@ -188,10 +196,16 @@ async def complete_analysis(
             except (json.JSONDecodeError, ValueError) as e:
                 raise HTTPException(status_code=400, detail=f"Invalid environmental parameters: {str(e)}")
         
+        location = None
+        if latitude is not None and longitude is not None:
+            location = {"lat": latitude, "lon": longitude}
+
         # Get complete analysis
         result = recommender.get_comprehensive_recommendation(
-            tmp_file_path, 
-            custom_params
+            tmp_file_path,
+            custom_env_params=custom_params,
+            location=location,
+            risk_preference=risk_preference
         )
         
         # Clean up

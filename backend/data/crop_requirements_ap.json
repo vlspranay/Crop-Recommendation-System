@@ -1,0 +1,18 @@
+{
+  "rice": { "rainfall": [120, 300], "temperature": [20, 35], "groundwater": "high" },
+  "wheat": { "rainfall": [60, 150], "temperature": [15, 25], "groundwater": "medium" },
+  "maize": { "rainfall": [50, 120], "temperature": [18, 30], "groundwater": "medium" },
+  "cotton": { "rainfall": [50, 100], "temperature": [21, 35], "groundwater": "medium" },
+  "sugarcane": { "rainfall": [100, 250], "temperature": [20, 35], "groundwater": "high" },
+  "groundnut": { "rainfall": [40, 100], "temperature": [20, 30], "groundwater": "low" },
+  "sunflower": { "rainfall": [40, 80], "temperature": [18, 30], "groundwater": "low" },
+  "pulses": { "rainfall": [30, 90], "temperature": [20, 30], "groundwater": "low" },
+  "jowar": { "rainfall": [30, 100], "temperature": [25, 35], "groundwater": "low" },
+  "ragi": { "rainfall": [40, 100], "temperature": [20, 30], "groundwater": "low" },
+  "potato": { "rainfall": [60, 120], "temperature": [15, 25], "groundwater": "medium" },
+  "onion": { "rainfall": [50, 100], "temperature": [20, 30], "groundwater": "medium" },
+  "coffee": { "rainfall": [150, 300], "temperature": [18, 28], "groundwater": "high" },
+  "tea": { "rainfall": [150, 300], "temperature": [18, 30], "groundwater": "high" },
+  "coconut": { "rainfall": [150, 250], "temperature": [25, 35], "groundwater": "high" },
+  "cashew": { "rainfall": [100, 200], "temperature": [20, 35], "groundwater": "low" }
+}

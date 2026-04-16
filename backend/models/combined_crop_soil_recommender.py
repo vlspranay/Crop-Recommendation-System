@@ -7,10 +7,19 @@ to provide crop suggestions based on soil type and environmental conditions.
 
 import numpy as np
 import pandas as pd
+import os
+import json
+
+# Apply quiet/reproducible TensorFlow defaults unless user overrides them.
+os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')
+os.environ.setdefault('TF_ENABLE_ONEDNN_OPTS', '0')
+
 import tensorflow as tf
 from tensorflow import keras
 import joblib
 from PIL import Image
+from backend.services.weather_service import get_weather_data
+from backend.services.groundwater_service import get_groundwater_level
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -80,6 +89,24 @@ class CombinedCropSoilRecommender:
                 'temperature': (15, 30), 'humidity': (60, 85), 'pH': (6.0, 7.5), 'rainfall': (100, 300)
             }
         }
+
+        req_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'crop_requirements_ap.json')
+        try:
+            with open(req_path, 'r', encoding='utf-8') as f:
+                self.crop_requirements = json.load(f)
+            print("✅ Crop requirements loaded")
+        except Exception as e:
+            print(f"⚠️ Failed to load crop requirements: {e}")
+            self.crop_requirements = {}
+
+        economics_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'crop_economics.json')
+        try:
+            with open(economics_path, 'r', encoding='utf-8') as f:
+                self.crop_economics = json.load(f)
+            print("✅ Crop economics loaded")
+        except Exception as e:
+            print(f"⚠️ Failed to load crop economics: {e}")
+            self.crop_economics = {}
     
     def classify_soil(self, image_path):
         """
@@ -133,7 +160,87 @@ class CombinedCropSoilRecommender:
                 params[key] = 0
         return params
     
-    def recommend_crops(self, soil_type, environmental_params=None, top_n=5):
+    def compute_constraint_score(self, crop_name, rainfall, temperature, groundwater_level):
+        """
+        Score crop viability against rainfall, temperature, and groundwater constraints.
+        """
+        req = self.crop_requirements.get(str(crop_name).lower())
+
+        if not req:
+            return 1.0
+
+        score = 1.0
+
+        if rainfall is not None:
+            min_r, max_r = req['rainfall']
+            if rainfall < min_r:
+                score *= 0.6
+            elif rainfall > max_r:
+                score *= 0.7
+
+        if temperature is not None:
+            min_t, max_t = req['temperature']
+            if temperature < min_t or temperature > max_t:
+                score *= 0.7
+
+        gw_map = {'low': 1, 'medium': 2, 'high': 3}
+        crop_req = gw_map.get(req['groundwater'], 2)
+        available = gw_map.get(str(groundwater_level).lower(), 2)
+
+        if available < crop_req:
+            score *= 0.6
+
+        return score
+
+    def compute_profit_score(self, crop_name):
+        data = self.crop_economics.get(str(crop_name).lower())
+        if not data:
+            return 0.5
+
+        cost = float(data.get('cost', 0))
+        price = float(data.get('price', 0))
+        if price <= 0:
+            return 0.5
+
+        margin = max(price - cost, 0.0)
+        ratio = margin / price
+        return max(0.0, min(1.0, ratio))
+
+    def compute_risk_score(self, crop_name, risk_preference=0.5):
+        data = self.crop_economics.get(str(crop_name).lower())
+        if not data:
+            return 0.5
+
+        crop_risk = float(data.get('risk', 0.5))
+        pref = max(0.0, min(1.0, float(risk_preference)))
+
+        # Match score: closer crop risk to user preference means better fit.
+        return 1.0 - min(1.0, abs(crop_risk - pref))
+
+    def compute_water_factor(self, crop_name, groundwater_level):
+        data = self.crop_economics.get(str(crop_name).lower())
+        if not data:
+            return 1.0
+
+        gw_map = {'low': 1, 'medium': 2, 'high': 3}
+        need = gw_map.get(str(data.get('water_need', 'medium')).lower(), 2)
+        available = gw_map.get(str(groundwater_level).lower(), 2)
+
+        if available < need:
+            return 0.85
+        if available > need:
+            return 1.05
+        return 1.0
+
+    def recommend_crops(
+        self,
+        soil_type,
+        environmental_params=None,
+        top_n=5,
+        location=None,
+        risk_preference=0.5,
+        groundwater_level='medium'
+    ):
         """
         Recommend crops based on soil type and environmental conditions.
         
@@ -148,6 +255,8 @@ class CombinedCropSoilRecommender:
         try:
             # Get environmental parameters
             env_params = self.get_environmental_parameters(soil_type, environmental_params)
+            rainfall = env_params.get('rainfall')
+            temperature = env_params.get('temperature')
             
             # Prepare input for crop model
             crop_input = np.array([[
@@ -170,16 +279,46 @@ class CombinedCropSoilRecommender:
             # Create recommendations with scores, filter out crops with no name or non-positive score
             recommendations = []
             for i, (crop_name, prob) in enumerate(zip(crop_names, crop_probabilities)):
-                # Boost score if crop is suitable for the soil type
-                soil_boost = 1.5 if crop_name in soil_specific_crops else 1.0
-                adjusted_score = prob * soil_boost
+                ml_score = float(prob)
+                soil_score = 1.0 if crop_name in soil_specific_crops else 0.6
+                profit_score = self.compute_profit_score(crop_name)
+                risk_score = self.compute_risk_score(crop_name, risk_preference)
+                constraint_score = self.compute_constraint_score(
+                    crop_name,
+                    rainfall,
+                    temperature,
+                    groundwater_level
+                )
+                water_factor = self.compute_water_factor(crop_name, groundwater_level)
+
+                final_score = (
+                    0.35 * ml_score +
+                    0.2 * soil_score +
+                    0.2 * profit_score +
+                    0.15 * risk_score +
+                    0.1 * constraint_score
+                ) * water_factor
+
+                reasons = []
+                if crop_name in soil_specific_crops:
+                    reasons.append('Good soil match')
+                if constraint_score < 0.7:
+                    reasons.append('May face environmental constraints')
+
                 # Only include crops with a valid name and positive score
-                if crop_name and adjusted_score > 0:
+                if crop_name and final_score > 0:
                     recommendations.append({
                         'crop': crop_name,
-                        'score': adjusted_score,
+                        'score': final_score,
                         'soil_suitable': crop_name in soil_specific_crops,
-                        'original_probability': prob
+                        'original_probability': prob,
+                        'constraint_score': constraint_score,
+                        'ml_score': ml_score,
+                        'soil_score': soil_score,
+                        'profit_score': profit_score,
+                        'risk_score': risk_score,
+                        'water_factor': water_factor,
+                        'reasons': reasons
                     })
             # Sort by adjusted score and return top N
             recommendations.sort(key=lambda x: x['score'], reverse=True)
@@ -194,7 +333,14 @@ class CombinedCropSoilRecommender:
                         'crop': random_crop,
                         'score': 1.0,
                         'soil_suitable': True,
-                        'original_probability': None
+                        'original_probability': 1.0,
+                        'constraint_score': 1.0,
+                        'ml_score': 1.0,
+                        'soil_score': 1.0,
+                        'profit_score': 0.5,
+                        'risk_score': 0.5,
+                        'water_factor': 1.0,
+                        'reasons': ['Fallback soil-specific recommendation']
                     }]
                 
             print("Top Recommendations:")
@@ -207,7 +353,14 @@ class CombinedCropSoilRecommender:
             print(f"Error in crop recommendation: {e}")
             return []
     
-    def get_comprehensive_recommendation(self, image_path, custom_env_params=None, top_n=5):
+    def get_comprehensive_recommendation(
+        self,
+        image_path,
+        custom_env_params=None,
+        top_n=5,
+        location=None,
+        risk_preference=0.5
+    ):
         """
         Get comprehensive crop recommendation based on soil image and optional environmental parameters.
         
@@ -230,18 +383,44 @@ class CombinedCropSoilRecommender:
                 'recommendations': []
             }
         
+        groundwater_level = 'medium'
+
+        if location:
+            weather = get_weather_data(location['lat'], location['lon'])
+
+            if weather:
+                if custom_env_params is None:
+                    custom_env_params = {}
+
+                custom_env_params['rainfall'] = weather['rainfall']
+                custom_env_params['temperature'] = weather['temperature']
+
+                groundwater_level = get_groundwater_level(
+                    location['lat'],
+                    location['lon']
+                )
+
         # Get environmental parameters
         env_params = self.get_environmental_parameters(soil_type, custom_env_params)
         
         # Get crop recommendations
-        recommendations = self.recommend_crops(soil_type, env_params, top_n)
+        recommendations = self.recommend_crops(
+            soil_type,
+            env_params,
+            top_n,
+            location=location,
+            risk_preference=risk_preference,
+            groundwater_level=groundwater_level
+        )
         
         return {
             'soil_type': soil_type,
             'soil_confidence': soil_confidence,
             'environmental_parameters': env_params,
             'recommendations': recommendations,
-            'soil_specific_crops': self.soil_crop_mapping.get(soil_type, [])
+            'soil_specific_crops': self.soil_crop_mapping.get(soil_type, []),
+            'groundwater_level': groundwater_level,
+            'risk_preference': risk_preference
         }
     
     def print_recommendation(self, result):

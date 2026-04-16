@@ -11,6 +11,12 @@ const analyzeBtn = document.getElementById('analyzeBtn');
 const resultsSection = document.getElementById('resultsSection');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const toastContainer = document.getElementById('toastContainer');
+const latitudeInput = document.getElementById('latitude');
+const longitudeInput = document.getElementById('longitude');
+const useCurrentLocationBtn = document.getElementById('useCurrentLocationBtn');
+const locationError = document.getElementById('locationError');
+const riskPreferenceInput = document.getElementById('riskPreference');
+const riskPreferenceLabel = document.getElementById('riskPreferenceLabel');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -51,6 +57,116 @@ function initializeEventListeners() {
             this.style.transform = 'translateY(0)';
         });
     });
+
+    if (useCurrentLocationBtn) {
+        useCurrentLocationBtn.addEventListener('click', handleUseCurrentLocation);
+    }
+
+    if (riskPreferenceInput) {
+        riskPreferenceInput.addEventListener('input', updateRiskPreferenceLabel);
+        updateRiskPreferenceLabel();
+    }
+}
+
+function showLocationError(message) {
+    if (!locationError) return;
+    locationError.textContent = message;
+    locationError.style.display = message ? 'block' : 'none';
+}
+
+function validateLocationInputs() {
+    const latRaw = latitudeInput ? latitudeInput.value.trim() : '';
+    const lonRaw = longitudeInput ? longitudeInput.value.trim() : '';
+
+    if (!latRaw && !lonRaw) {
+        showLocationError('');
+        return { valid: true, latitude: null, longitude: null };
+    }
+
+    if (!latRaw || !lonRaw) {
+        showLocationError('Please provide both latitude and longitude, or leave both empty.');
+        return { valid: false };
+    }
+
+    const latitude = parseFloat(latRaw);
+    const longitude = parseFloat(lonRaw);
+
+    if (Number.isNaN(latitude) || latitude < -90 || latitude > 90) {
+        showLocationError('Latitude must be between -90 and 90.');
+        return { valid: false };
+    }
+
+    if (Number.isNaN(longitude) || longitude < -180 || longitude > 180) {
+        showLocationError('Longitude must be between -180 and 180.');
+        return { valid: false };
+    }
+
+    showLocationError('');
+    return { valid: true, latitude, longitude };
+}
+
+function getRiskPreference() {
+    const value = riskPreferenceInput ? parseFloat(riskPreferenceInput.value) : 0.5;
+    if (Number.isNaN(value)) return 0.5;
+    return Math.min(1, Math.max(0, value));
+}
+
+function updateRiskPreferenceLabel() {
+    if (!riskPreferenceInput || !riskPreferenceLabel) return;
+
+    const value = getRiskPreference();
+    let interpretation = 'Balanced';
+
+    if (value <= 0.33) {
+        interpretation = 'Low Risk';
+    } else if (value >= 0.67) {
+        interpretation = 'High Return';
+    }
+
+    riskPreferenceLabel.textContent = `${interpretation} (${value.toFixed(2)})`;
+}
+
+function handleUseCurrentLocation() {
+    if (!navigator.geolocation) {
+        showLocationError('Geolocation is not supported by this browser.');
+        return;
+    }
+
+    showLocationError('');
+    if (useCurrentLocationBtn) {
+        useCurrentLocationBtn.disabled = true;
+        useCurrentLocationBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detecting...';
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const { latitude, longitude } = position.coords;
+
+            if (latitudeInput) latitudeInput.value = latitude.toFixed(6);
+            if (longitudeInput) longitudeInput.value = longitude.toFixed(6);
+
+            showLocationError('');
+            showToast('Current location detected successfully!', 'success');
+
+            if (useCurrentLocationBtn) {
+                useCurrentLocationBtn.disabled = false;
+                useCurrentLocationBtn.innerHTML = '<i class="fas fa-crosshairs"></i> Use Current Location';
+            }
+        },
+        () => {
+            showLocationError('Unable to fetch current location. Please enter manually.');
+
+            if (useCurrentLocationBtn) {
+                useCurrentLocationBtn.disabled = false;
+                useCurrentLocationBtn.innerHTML = '<i class="fas fa-crosshairs"></i> Use Current Location';
+            }
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
 }
 
 // Initialize animations
@@ -184,6 +300,12 @@ async function performAnalysis() {
         scrollToSection('analysis');
         return;
     }
+
+    const locationData = validateLocationInputs();
+    if (!locationData.valid) {
+        showToast('Please correct location inputs before analysis.', 'error');
+        return;
+    }
     
     // Disable button and show loading
     analyzeBtn.disabled = true;
@@ -198,6 +320,13 @@ async function performAnalysis() {
         const envParams = getEnvironmentalParameters();
         if (Object.keys(envParams).length > 0) {
             formData.append('environmental_params', JSON.stringify(envParams));
+        }
+
+        formData.append('risk_preference', String(getRiskPreference()));
+
+        if (locationData.latitude !== null && locationData.longitude !== null) {
+            formData.append('latitude', String(locationData.latitude));
+            formData.append('longitude', String(locationData.longitude));
         }
         
         const response = await fetch('/api/complete-analysis', {
@@ -333,19 +462,50 @@ function displayCropRecommendations(recommendations) {
         const cropItem = document.createElement('div');
         cropItem.className = `crop-item ${rec.soil_suitable ? 'suitable' : 'not-suitable'}`;
         cropItem.style.animationDelay = `${index * 0.1}s`;
+
+        if (index === 0) {
+            cropItem.style.border = '2px solid #48bb78';
+            cropItem.style.background = '#f0fff4';
+        }
         
         const indicator = rec.soil_suitable ? '✅' : '⚠️';
-        const suitability = rec.soil_suitable ? 'Highly Suitable' : 'Moderately Suitable';
         const scoreColor = rec.soil_suitable ? '#48bb78' : '#ed8936';
+
+        const profit = rec.profit !== undefined
+            ? `₹${rec.profit}`
+            : (rec.profit_score !== undefined ? rec.profit_score.toFixed(2) : 'N/A');
+        const duration = rec.duration !== undefined ? `${rec.duration} days` : 'N/A';
+        const risk = rec.risk !== undefined
+            ? rec.risk.toFixed(2)
+            : (rec.risk_score !== undefined ? rec.risk_score.toFixed(2) : 'N/A');
+        const water = rec.water_need ? rec.water_need : 'N/A';
+        const reasonsList = Array.isArray(rec.reason)
+            ? rec.reason
+            : (Array.isArray(rec.reasons) ? rec.reasons : []);
+        const reasons = reasonsList.length > 0 ? reasonsList.join(', ') : 'No details';
         
         cropItem.innerHTML = `
-            <div class="crop-name">
-                <span style="font-size: 1.2rem;">${indicator}</span>
-                <span>${rec.crop.charAt(0).toUpperCase() + rec.crop.slice(1)}</span>
-                <small style="color: #718096; margin-left: 0.5rem; font-weight: 500;">(${suitability})</small>
-            </div>
-            <div class="crop-score" style="color: ${scoreColor};">
-                ${(rec.score * 100).toFixed(1)}%
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="crop-name">
+                        <span style="font-size: 1.2rem;">${indicator}</span>
+                        <span>${rec.crop.charAt(0).toUpperCase() + rec.crop.slice(1)}</span>
+                    </div>
+                    <div class="crop-score" style="color: ${scoreColor};">
+                        ${(rec.score * 100).toFixed(1)}%
+                    </div>
+                </div>
+
+                <div style="font-size: 0.9rem; color: #4a5568;">
+                    💰 Profit: ${profit} |
+                    ⏱ Duration: ${duration} |
+                    ⚖ Risk: ${risk} |
+                    🌊 Water Need: ${water}
+                </div>
+
+                <div style="font-size: 0.85rem; color: #718096;">
+                    💡 ${reasons}
+                </div>
             </div>
         `;
         
