@@ -58,8 +58,8 @@ DigiFarmer/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/DigiFarmer.git
-   cd DigiFarmer
+   git clone https://github.com/vlspranay/Crop-Recommendation-System.git
+   cd Crop-Recommendation-System
    ```
 
 2. **Install dependencies**
@@ -132,6 +132,99 @@ The AI system analyzes these critical factors:
 - **🌡️ Climate**: Temperature (10-40°C), Humidity (50-95%)
 - **💧 Water**: pH Level (4.0-8.5), Rainfall (50-500 mm)
 
+## 📂 Data & Datasets
+
+The system relies on comprehensive agricultural data stored in JSON format:
+
+### Data Files
+- **`crop_requirements_ap.json`**: Detailed crop-specific requirements including:
+  - Optimal nutrient levels (N, P, K ranges)
+  - Temperature and humidity thresholds
+  - pH requirements
+  - Rainfall patterns
+  - Growing season duration
+  - Yield expectations
+
+- **`crop_economics.json`**: Economic information for decision-making:
+  - Crop market prices
+  - Production costs
+  - Profitability metrics
+  - Regional price variations
+  - Market demand trends
+
+- **`groundwater_ap.json`**: Regional groundwater level data:
+  - Available water resources by location
+  - Seasonal variations
+  - Sustainability indicators
+  - Water usage recommendations
+
+### Model Training Data
+- **Soil Classification Dataset**: 8 soil types with thousands of annotated soil images
+- **Crop Recommendation Dataset**: Historical agricultural records with crop success rates
+- **Environmental Data**: Historical weather patterns and crop yields by region
+
+## 🧠 ML Decision System
+
+### How Recommendations Are Generated
+
+#### Step 1: Soil Classification
+```
+User Image → ResNet50 Deep Learning Model → Soil Type + Confidence Score
+```
+- **Model**: Fine-tuned ResNet50 with transfer learning
+- **Input**: Soil image (224×224 pixels)
+- **Output**: Predicted soil type with confidence percentage (0-100%)
+- **Classes**: Alluvial, Black, Cinder, Clay, Laterite, Peat, Red, Yellow
+- **Accuracy**: 85%+ on test datasets
+
+#### Step 2: Environmental Data Integration
+```
+Soil Type + Environmental Parameters → Soil-Specific Environmental Ranges
+```
+- System retrieves optimal ranges for detected soil type
+- Validates environmental parameters against healthy ranges
+- Flags suboptimal conditions for user awareness
+
+#### Step 3: Crop Recommendation Ranking
+```
+Soil Type + Environmental Data → Scikit-learn Classifier → Crop Scores
+```
+- **Model**: Random Forest classifier with 100 estimators
+- **Features**: 8 environmental parameters + soil type encoding
+- **Ranking**: Crops scored 0-100 based on suitability
+- **Decision Logic**:
+  1. Filter crops suitable for detected soil type (from soil-crop mapping)
+  2. Score each crop based on environmental parameter alignment
+  3. Apply economic weighting (market demand, profitability)
+  4. Rank by combined ecological and economic scores
+
+#### Step 4: Output Generation
+```
+Ranked Crops → Confidence Scores → User-Friendly Recommendations
+```
+- **Primary Recommendations**: Top 3-5 crops with highest scores
+- **Confidence Indicators**: Visual feedback based on model certainty
+- **Alternative Crops**: Secondary suggestions for diverse farming
+- **Warnings**: Alerts for suboptimal environmental conditions
+
+### Decision Factors
+
+| Factor | Weight | Impact |
+|--------|--------|--------|
+| Soil Type Match | 40% | Primary determinant of crop suitability |
+| Nutrient Levels | 20% | Essential for crop growth |
+| Temperature Range | 15% | Critical for germination and yield |
+| Humidity & Rainfall | 15% | Determines irrigation requirements |
+| pH Level | 10% | Affects nutrient availability |
+
+### Confidence & Accuracy Metrics
+- **Soil Classification Confidence**: Based on ResNet50 prediction probability
+- **Crop Recommendation Score**: 0-100 scale derived from Random Forest prediction confidence
+- **Green (80-100)**: Highly recommended - optimal conditions
+- **Yellow (60-79)**: Recommended - acceptable conditions
+- **Orange (40-59)**: Marginal - requires monitoring
+- **Red (<40)**: Not recommended - suboptimal conditions
+
 ## 🎯 How to Use
 
 ### 1. **Upload Soil Image**
@@ -195,10 +288,22 @@ The AI system analyzes these critical factors:
 - **Open Source Libraries** for ML and web frameworks
 - **Contributors** and beta testers for valuable feedback
 
-## 📞 Support
+## 🤝 Contributing
 
-- **📧 Email**: [jayanthsrinivas.b@gmail.com](jayanthsrinivas.b@gmail.com)
-- **💬 Discussions**: [GitHub Discussions](https://github.com/JayanthSrinivas06/DigiFarmer/discussions)
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📞 Support & Contact
+
+- **📧 Email**: [jayanthsrinivas.b@gmail.com](mailto:jayanthsrinivas.b@gmail.com)
+- **💬 Discussions**: [GitHub Discussions](https://github.com/vlspranay/Crop-Recommendation-System/discussions)
+- **🐛 Issues**: [GitHub Issues](https://github.com/vlspranay/Crop-Recommendation-System/issues)
+- **📚 Repository**: [github.com/vlspranay/Crop-Recommendation-System](https://github.com/vlspranay/Crop-Recommendation-System)
 
 ---
 
@@ -206,7 +311,9 @@ The AI system analyzes these critical factors:
 
 **🌱 Built with ❤️ for the future of agriculture**
 
+[![GitHub Stars](https://img.shields.io/github/stars/vlspranay/Crop-Recommendation-System?style=for-the-badge&logo=github)](https://github.com/vlspranay/Crop-Recommendation-System)
 [![Made with Python](https://img.shields.io/badge/Made%20with-Python-blue?style=for-the-badge&logo=python)](https://python.org)
 [![Powered by AI](https://img.shields.io/badge/Powered%20by-AI-green?style=for-the-badge&logo=tensorflow)](https://tensorflow.org)
+[![License](https://img.shields.io/github/license/vlspranay/Crop-Recommendation-System?style=for-the-badge)](https://github.com/vlspranay/Crop-Recommendation-System/blob/main/LICENSE)
 
 </div>
